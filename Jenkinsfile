@@ -1,23 +1,30 @@
 pipeline {
-  agent any
-  stages {
-    stage('Build') {
-      steps {
-        sh 'ping -n 4 google.com'
-      }
+    agent {
+        docker {
+            image 'node:12-alpine'
+            args '-p 3000:3000'
+        }
     }
-
-    stage('Test') {
-      steps {
-        sh 'ping -n 2 google.com'
-      }
+    environment { 
+        CI = 'true'
     }
-
-    stage('Deliver') {
-      steps {
-        sh 'ping -n 3 google.com'
-      }
+    stages {
+        stage('Build') {
+            steps {
+                sh 'npm install'
+            }
+        }
+        stage('Test') {
+            steps {
+                sh './jenkins/scripts/test.sh'
+            }
+        }
+        stage('Deliver') { 
+            steps {
+                sh './jenkins/scripts/deliver.sh' 
+                input message: 'Finished using the web site? (Click "Proceed" to continue)' 
+                sh './jenkins/scripts/kill.sh' 
+            }
+        }
     }
-
-  }
 }
