@@ -1,12 +1,17 @@
 pipeline {
     agent {
-        docker {
-            image 'node:12-alpine'
-            args '-p 3000:3000'
+        dockerfile {
+            filename 'jenkinsAgent.Dockerfile'
+            additionalBuildArgs  '--build-arg JENKINSUID=`id -u jenkins` --build-arg JENKINSGID=`id -g jenkins` --build-arg DOCKERGID=`stat -c %g /var/run/docker.sock`'
+            args '-v /var/run/docker.sock:/var/run/docker.sock -u jenkins:docker'
         }
     }
     environment { 
         CI = 'true'
+        HOME = '.'
+        registry = "kodifiera/react-ci-test"
+        registryCredential = 'docker-hub-credentials'
+        dockerImage = ''
     }
     stages {
         stage('Build') {
@@ -16,14 +21,25 @@ pipeline {
         }
         stage('Test') {
             steps {
-                sh './jenkins/scripts/test.sh'
+                sh 'npm test'
             }
         }
-        stage('Deliver') { 
+        stage('Staging') { 
             steps {
-                sh './jenkins/scripts/deliver.sh' 
-                input message: 'Finished using the web site? (Click "Proceed" to continue)' 
-                sh './jenkins/scripts/kill.sh' 
+                sh 'npm run build'
+                script {
+                    dockerImage = docker.build registry + ":$BUILD_NUMBER"
+                }
+            }
+        }
+        stage('Deliver') {
+            steps {
+                input message: 'Publish?'
+                script {
+                    docker.withRegistry( '', registryCredential ) {
+                        dockerImage.push()
+                    }
+                }
             }
         }
     }
