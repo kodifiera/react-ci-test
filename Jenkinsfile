@@ -14,7 +14,7 @@ pipeline {
         dockerImage = ''
     }
     stages {
-        stage('Build') {
+        stage('Init') {
             steps {
                 sh 'npm install'
             }
@@ -24,17 +24,30 @@ pipeline {
                 sh 'npm test'
             }
         }
-        stage('Staging') { 
+        stage('Build') {
             steps {
                 sh 'npm run build'
+                dockerImage = docker.build registry + ":$BUILD_NUMBER"
+            }
+        }
+        stage('Staging') {
+            when {
+                branch 'Development'
+            }
+            steps {
                 script {
-                    dockerImage = docker.build registry + ":$BUILD_NUMBER"
+                    sh 'echo ============================='
+                    sh 'echo ===  NOT YET IMPLEMENTED  ==='
+                    sh 'echo Build from local docker image'
+                    sh 'echo ============================='
                 }
             }
         }
         stage('Deliver') {
+            when {
+                branch 'Production'
+            }
             steps {
-                input message: 'Publish?'
                 script {
                     docker.withRegistry( '', registryCredential ) {
                         dockerImage.push()
